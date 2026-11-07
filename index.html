@@ -1,1388 +1,659 @@
 <!DOCTYPE html>
-<html lang="ru" class="dark">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>DROPZONE // Interactive Music Showcase</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Phosphor Icons -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <!-- Google Fonts: Syne & JetBrains Mono -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Audio Drop // Visualizer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Syne:wght@600;700;800;900&display=swap" rel="stylesheet">
-  
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            display: ['Syne', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          },
-          colors: {
-            daw: {
-              950: '#08090C',
-              900: '#0F1117',
-              850: '#151821',
-              800: '#1C212D',
-              700: '#2A3142',
-              600: '#3D465D',
-            },
-            neon: {
-              cyan: '#00F0FF',
-              amber: '#FFB800',
-              acid: '#39FF14',
-              crimson: '#FF2A55',
-              violet: '#A855F7',
-            }
-          },
-          boxShadow: {
-            'glow-cyan': '0 0 25px rgba(0, 240, 255, 0.45)',
-            'glow-crimson': '0 0 25px rgba(255, 42, 85, 0.45)',
-            'glow-acid': '0 0 25px rgba(57, 255, 20, 0.35)',
-          }
-        }
-      }
-    }
-  </script>
-
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0f1117;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #2a3142;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #00f0ff;
-    }
-    
-    /* Subtle CRT line texture overlay */
-    .crt-overlay {
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-      background-size: 100% 4px, 6px 100%;
-      pointer-events: none;
+    :root {
+      --bg: #090a0f;
+      --card-bg: rgba(18, 20, 29, 0.75);
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #00ffcc;
+      --accent-dim: rgba(0, 255, 204, 0.15);
+      --accent2: #ff0055;
+      --text: #f0f3f6;
+      --muted: #7e8b9b;
     }
 
-    /* Grab cursor for drag & drop playlist */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(0, 255, 204, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(255, 0, 85, 0.05) 0%, transparent 40%);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 4px;
+    }
+
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(0, 255, 204, 0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    /* Visualizer Card */
+    .vis-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 190px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #040507;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .vis-modes {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    .vis-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .vis-btn.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* Player Controls */
+    .player-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .now-playing-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .track-title {
+      font-size: 16px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 280px;
+    }
+
+    .track-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      border-radius: 3px;
+    }
+
+    .time-info {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .control-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 4px;
+    }
+
+    .btn-circle {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .btn-play {
+      width: 58px;
+      height: 58px;
+      background: var(--accent);
+      color: #000;
+      font-size: 20px;
+      border: none;
+      box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+    }
+
+    .btn-circle:active {
+      transform: scale(0.94);
+    }
+
+    /* Playlist Drag & Drop */
+    .playlist-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .playlist-header {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 6px;
+    }
+
+    .track-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .track-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .track-item.active {
+      background: var(--accent-dim);
+      border-color: rgba(0, 255, 204, 0.3);
+    }
+
     .drag-handle {
+      color: var(--muted);
       cursor: grab;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      padding: 0 4px;
     }
-    .drag-handle:active {
-      cursor: grabbing;
+
+    .track-idx {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      width: 18px;
     }
-    .dragging {
+
+    .track-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .track-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .track-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .track-item.dragging {
       opacity: 0.4;
-      transform: scale(0.98);
-      border-color: #00f0ff !important;
-    }
-    
-    /* Neon Text Pulse */
-    @keyframes neonPulse {
-      0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 8px rgba(0,240,255,0.7)); }
-      50% { opacity: 1; filter: drop-shadow(0 0 16px rgba(0,240,255,1)); }
-    }
-    .neon-pulse {
-      animation: neonPulse 2.8s infinite ease-in-out;
+      background: rgba(255,255,255,0.08);
     }
   </style>
 </head>
+<body>
 
-<body class="bg-daw-950 text-slate-100 font-mono antialiased min-h-screen selection:bg-neon-cyan selection:text-black pb-12">
+  <div class="app-container">
+    <header>
+      <div class="title">AUDIO DROP</div>
+      <div class="badge">Instagram Bio Player</div>
+    </header>
 
-  <!-- Top Status Bar & Instagram Bio Header -->
-  <header class="border-b border-daw-800 bg-daw-900/90 backdrop-blur-md sticky top-0 z-40 px-4 py-3">
-    <div class="max-w-6xl mx-auto flex items-center justify-between">
-      
-      <!-- Logo / Artist Brand -->
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-neon-cyan via-daw-800 to-neon-crimson p-[1px] shadow-glow-cyan">
-          <div class="w-full h-full bg-daw-900 rounded-[7px] flex items-center justify-center">
-            <i class="ph-bold ph-waveform text-neon-cyan text-lg"></i>
-          </div>
-        </div>
+    <!-- Visualizer Canvas -->
+    <div class="vis-card">
+      <div class="canvas-wrapper">
+        <canvas id="visualizerCanvas"></canvas>
+      </div>
+      <div class="vis-modes">
+        <button class="vis-btn active" data-mode="bars">BARS</button>
+        <button class="vis-btn" data-mode="wave">WAVE</button>
+        <button class="vis-btn" data-mode="bloom">BLOOM</button>
+      </div>
+    </div>
+
+    <!-- Active Player -->
+    <div class="player-card">
+      <div class="now-playing-info">
         <div>
-          <div class="flex items-center gap-2">
-            <span class="font-display font-black tracking-wider text-base sm:text-lg text-white">RESONANCE</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan font-bold">EP DROP</span>
-          </div>
-          <p class="text-[11px] text-slate-400">@artist.drop • Bio Link Interactive Player</p>
+          <div class="track-title" id="currentTrackTitle">Track 01</div>
+          <div class="track-meta" id="currentTrackMeta">Ready to stream</div>
         </div>
+        <div class="track-meta" id="statusBadge">PAUSED</div>
       </div>
 
-      <!-- Action buttons -->
-      <div class="flex items-center gap-2">
-        <button id="openUploadBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-daw-850 hover:bg-daw-800 border border-daw-700 hover:border-slate-400 transition-all text-slate-200">
-          <i class="ph-bold ph-upload-simple text-sm text-neon-amber"></i>
-          <span class="hidden sm:inline">Свой трек</span>
-        </button>
-
-        <button id="openPostStudioBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-neon-crimson to-pink-600 hover:from-pink-500 hover:to-rose-600 text-white shadow-glow-crimson transition-all active:scale-95">
-          <i class="ph-bold ph-instagram-logo text-sm"></i>
-          <span class="hidden sm:inline">Инстаграм Превью</span>
-          <span class="sm:hidden">IG Post</span>
-        </button>
+      <div class="progress-bar-container" id="progressBarContainer">
+        <div class="progress-bar" id="progressBar"></div>
       </div>
 
-    </div>
-  </header>
-
-  <!-- Main Container -->
-  <main class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-    <!-- LEFT / MAIN COLUMN: Visualizer Deck & Current Track (7 Cols) -->
-    <div class="lg:col-span-7 flex flex-col gap-5">
-
-      <!-- Visualizer Card Deck -->
-      <div class="relative bg-daw-900 rounded-2xl border border-daw-800 overflow-hidden shadow-2xl flex flex-col">
-        
-        <!-- Header controls inside Deck -->
-        <div class="flex items-center justify-between px-4 py-3 bg-daw-850/80 border-b border-daw-800 z-10 text-xs">
-          <div class="flex items-center gap-2">
-            <span class="inline-flex w-2 h-2 rounded-full bg-neon-acid animate-ping"></span>
-            <span class="text-slate-400 font-bold uppercase tracking-wider text-[11px]" id="engineStatus">AUDIO ENGINE: READY</span>
-          </div>
-          
-          <!-- Visualizer Mode Selector -->
-          <div class="flex items-center gap-1 bg-daw-900 p-1 rounded-lg border border-daw-800">
-            <button data-mode="bars" class="viz-mode-btn px-2.5 py-1 rounded text-[11px] font-bold bg-neon-cyan text-daw-950 transition">Bars</button>
-            <button data-mode="wave" class="viz-mode-btn px-2.5 py-1 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">Oscillo</button>
-            <button data-mode="circle" class="viz-mode-btn px-2.5 py-1 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">Nova Bloom</button>
-          </div>
-        </div>
-
-        <!-- CANVAS VISUALIZER SCREEN -->
-        <div class="relative w-full aspect-square sm:aspect-[16/10] bg-daw-950 flex items-center justify-center overflow-hidden">
-          <canvas id="visualizerCanvas" class="w-full h-full block"></canvas>
-          <div class="crt-overlay absolute inset-0"></div>
-
-          <!-- Big Center Play Button Overlay if Stopped -->
-          <button id="overlayPlayBtn" class="absolute inset-0 m-auto w-20 h-20 rounded-full bg-neon-cyan/20 backdrop-blur-md border border-neon-cyan/60 flex items-center justify-center text-neon-cyan shadow-glow-cyan hover:scale-105 active:scale-95 transition-all z-20 group">
-            <i class="ph-fill ph-play text-3xl ml-1 group-hover:scale-110 transition-transform"></i>
-          </button>
-
-          <!-- Current Playing Track Title Overlay -->
-          <div class="absolute bottom-3 left-3 right-3 flex items-end justify-between pointer-events-none z-10">
-            <div class="bg-daw-950/85 backdrop-blur-md px-3 py-2 rounded-xl border border-daw-800/80 max-w-[75%]">
-              <span id="deckGenre" class="text-[10px] font-bold tracking-widest text-neon-amber uppercase block">ELECTRONIC / TECHNO</span>
-              <h2 id="deckTitle" class="text-base sm:text-lg font-display font-black text-white truncate">Berlin Subterranean</h2>
-              <p id="deckArtist" class="text-xs text-slate-400 font-mono">132 BPM • Drop 01 • Synth Stems</p>
-            </div>
-            
-            <div id="deckAudioBadge" class="bg-daw-950/90 border border-daw-800 text-[11px] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-neon-cyan font-bold">
-              <i class="ph-bold ph-speaker-high"></i>
-              <span id="liveBpm">132 BPM</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Timeline & Scrubbing Bar -->
-        <div class="px-4 pt-3 pb-2 bg-daw-900 border-t border-daw-800">
-          <div class="flex items-center justify-between text-xs text-slate-400 font-mono mb-1.5">
-            <span id="currentTime">00:00</span>
-            <div class="flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-neon-cyan"></span>
-              <span class="text-[11px] text-slate-300 font-semibold uppercase" id="trackKeyBadge">F MINOR</span>
-            </div>
-            <span id="totalDuration">00:45</span>
-          </div>
-          
-          <!-- Interactive Scrub Bar -->
-          <div id="timelineContainer" class="relative w-full h-3 bg-daw-800 rounded-full overflow-hidden cursor-pointer group">
-            <div id="progressBar" class="h-full bg-gradient-to-r from-neon-cyan via-teal-400 to-neon-acid w-0 relative rounded-full">
-              <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md scale-0 group-hover:scale-100 transition-transform"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Primary Transport Controls (FL Studio / Hardware Groovebox style) -->
-        <div class="px-4 py-3 bg-daw-850 flex flex-wrap items-center justify-between gap-3 border-t border-daw-800">
-          
-          <!-- Playback Cluster -->
-          <div class="flex items-center gap-2">
-            <button id="prevBtn" class="w-10 h-10 rounded-xl bg-daw-800 hover:bg-daw-700 border border-daw-700 flex items-center justify-center text-slate-200 active:scale-95 transition">
-              <i class="ph-bold ph-skip-back text-lg"></i>
-            </button>
-
-            <button id="mainPlayBtn" class="w-12 h-12 rounded-xl bg-neon-cyan hover:bg-cyan-300 text-daw-950 font-bold shadow-glow-cyan flex items-center justify-center active:scale-95 transition">
-              <i class="ph-fill ph-play text-xl ml-0.5" id="mainPlayIcon"></i>
-            </button>
-
-            <button id="nextBtn" class="w-10 h-10 rounded-xl bg-daw-800 hover:bg-daw-700 border border-daw-700 flex items-center justify-center text-slate-200 active:scale-95 transition">
-              <i class="ph-bold ph-skip-forward text-lg"></i>
-            </button>
-
-            <button id="loopBtn" class="w-10 h-10 rounded-xl bg-daw-800 hover:bg-daw-700 border border-daw-700 flex items-center justify-center text-neon-cyan active:scale-95 transition" title="Зациклить трек">
-              <i class="ph-bold ph-repeat text-lg"></i>
-            </button>
-          </div>
-
-          <!-- Volume & Sound Effects -->
-          <div class="flex items-center gap-3">
-            <i class="ph-bold ph-speaker-low text-slate-400 text-sm"></i>
-            <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.8" class="w-24 sm:w-28 accent-neon-cyan h-1.5 bg-daw-800 rounded-lg cursor-pointer" />
-            <i class="ph-bold ph-speaker-high text-slate-300 text-sm"></i>
-          </div>
-
-        </div>
-
+      <div class="time-info">
+        <span id="currentTime">00:00</span>
+        <span id="durationTime">00:00</span>
       </div>
 
-      <!-- Quick Interactive FX Pad (Filter & Distortion) -->
-      <div class="bg-daw-900 border border-daw-800 rounded-2xl p-4 flex flex-col gap-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <i class="ph-bold ph-faders text-neon-acid"></i>
-            <span class="text-xs font-bold tracking-wider text-slate-300 uppercase">Live Master Filter (Интерактивный фильтр)</span>
-          </div>
-          <span class="text-[11px] text-slate-500 font-mono">LPF / CUTOFF</span>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div class="flex flex-col gap-1.5">
-            <div class="flex justify-between text-[11px] text-slate-400 font-mono">
-              <span>Cutoff Frequency</span>
-              <span id="cutoffVal" class="text-neon-cyan">20000 Hz</span>
-            </div>
-            <input id="filterCutoff" type="range" min="200" max="20000" step="50" value="20000" class="w-full accent-neon-acid h-2 bg-daw-800 rounded-lg cursor-pointer">
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <div class="flex justify-between text-[11px] text-slate-400 font-mono">
-              <span>Resonance / Q</span>
-              <span id="resVal" class="text-neon-amber">1.0</span>
-            </div>
-            <input id="filterRes" type="range" min="0.1" max="12" step="0.1" value="1.0" class="w-full accent-neon-amber h-2 bg-daw-800 rounded-lg cursor-pointer">
-          </div>
-        </div>
+      <div class="control-buttons">
+        <button class="btn-circle" id="prevBtn">⏮</button>
+        <button class="btn-circle btn-play" id="playBtn">▶</button>
+        <button class="btn-circle" id="nextBtn">⏭</button>
       </div>
-
     </div>
 
-    <!-- RIGHT COLUMN: Playlist / Track Order & Instagram Actions (5 Cols) -->
-    <div class="lg:col-span-5 flex flex-col gap-5">
-
-      <!-- Playlist Card -->
-      <div class="bg-daw-900 rounded-2xl border border-daw-800 overflow-hidden flex flex-col shadow-xl">
-        
-        <!-- Playlist Header -->
-        <div class="px-4 py-3 bg-daw-850 border-b border-daw-800 flex items-center justify-between">
-          <div>
-            <h3 class="font-display font-bold text-sm text-white flex items-center gap-2">
-              <i class="ph-bold ph-playlist text-neon-cyan"></i>
-              Треклист релиза
-            </h3>
-            <p class="text-[11px] text-slate-400 font-mono">Перетаскивай <i class="ph-bold ph-dots-six-vertical"></i> треки для смены порядка</p>
-          </div>
-          <span id="trackCountBadge" class="px-2 py-0.5 rounded text-xs bg-daw-800 border border-daw-700 text-neon-cyan font-bold font-mono">5 треков</span>
-        </div>
-
-        <!-- Draggable Track Items List -->
-        <div id="playlistList" class="divide-y divide-daw-800/60 p-2 flex flex-col gap-1.5 max-h-[440px] overflow-y-auto">
-          <!-- Dynamically populated via JS -->
-        </div>
-
-        <!-- Footer / Add Track prompt -->
-        <div class="p-3 bg-daw-900 border-t border-daw-800 flex items-center justify-between text-xs text-slate-400 font-mono">
-          <span>Синтез: Web Audio 48kHz</span>
-          <button id="resetOrderBtn" class="text-[11px] text-neon-cyan hover:underline">Сбросить порядок</button>
-        </div>
-
-      </div>
-
-      <!-- Quick IG Share / Reel Export Card -->
-      <div class="bg-gradient-to-br from-daw-900 via-daw-850 to-daw-900 rounded-2xl border border-daw-800 p-5 flex flex-col gap-3 relative overflow-hidden">
-        <div class="absolute -right-8 -bottom-8 w-28 h-28 bg-neon-crimson/10 rounded-full blur-2xl pointer-events-none"></div>
-
-        <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center font-bold">
-            <i class="ph-bold ph-sparkle text-lg"></i>
-          </div>
-          <div>
-            <h4 class="font-display font-bold text-white text-sm">Сделать промо-пост для Instagram</h4>
-            <p class="text-[11px] text-slate-400">Генератор сниппетов, рамок 9:16 и готовых подписей</p>
-          </div>
-        </div>
-
-        <p class="text-xs text-slate-300 leading-relaxed font-sans">
-          Инстаграм не имеет встроенных mp3-плееров, поэтому музыканты размещают эту интерактивную страницу в био, а в ленту выкладывают видео-сниппет.
-        </p>
-
-        <button id="openPostStudioSecondary" class="w-full py-2.5 px-4 rounded-xl font-display font-bold text-xs uppercase tracking-wider bg-daw-800 hover:bg-daw-700 border border-daw-700 text-slate-200 hover:text-white flex items-center justify-center gap-2 transition active:scale-95">
-          <i class="ph-bold ph-video-camera text-neon-cyan"></i>
-          Открыть генератор сторис & карусели
-        </button>
-      </div>
-
-    </div>
-
-  </main>
-
-  <!-- MODAL: Instagram Post & Reel Preview Studio -->
-  <div id="postStudioModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 hidden">
-    <div class="bg-daw-900 border border-daw-700 rounded-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
-      
-      <!-- Modal Header -->
-      <div class="px-5 py-4 border-b border-daw-800 flex items-center justify-between sticky top-0 bg-daw-900/95 backdrop-blur z-10">
-        <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 flex items-center justify-center text-white text-sm">
-            <i class="ph-bold ph-instagram-logo"></i>
-          </div>
-          <div>
-            <h3 class="font-display font-bold text-base text-white">Instagram Drop Studio</h3>
-            <p class="text-[11px] text-slate-400">Превью форматов, кадры для записи экрана и тексты постов</p>
-          </div>
-        </div>
-        <button id="closePostStudio" class="w-8 h-8 rounded-lg bg-daw-800 text-slate-400 hover:text-white flex items-center justify-center">
-          <i class="ph-bold ph-x text-lg"></i>
-        </button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="p-5 flex flex-col gap-6">
-        
-        <!-- Aspect Ratio Toggle -->
-        <div class="flex items-center justify-between bg-daw-850 p-2 rounded-xl border border-daw-800">
-          <span class="text-xs font-bold text-slate-300 ml-2">Формат превью:</span>
-          <div class="flex gap-2">
-            <button id="ratioSquareBtn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-neon-cyan text-daw-950 transition">1:1 Пост / Карусель</button>
-            <button id="ratioStoryBtn" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">9:16 Reels / Stories</button>
-          </div>
-        </div>
-
-        <!-- Phone Mockup Frame -->
-        <div class="flex justify-center items-center py-2 bg-daw-950 rounded-xl border border-daw-850 overflow-hidden">
-          <div id="mockupFrame" class="relative transition-all duration-300 w-[280px] h-[280px] bg-gradient-to-br from-daw-900 to-black border-2 border-daw-700 rounded-xl overflow-hidden shadow-2xl flex flex-col justify-between p-4">
-            
-            <!-- Mock Header -->
-            <div class="flex items-center justify-between border-b border-white/10 pb-2">
-              <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-full bg-neon-cyan"></div>
-                <span class="text-[11px] font-bold text-white font-sans">@artist.profile</span>
-              </div>
-              <span class="text-[9px] px-1.5 py-0.5 rounded bg-neon-crimson/20 text-neon-crimson font-mono font-bold">NEW RELEASE</span>
-            </div>
-
-            <!-- Mock Center Graphic: Animated bars -->
-            <div class="my-auto flex flex-col items-center text-center gap-2">
-              <div class="w-16 h-16 rounded-xl bg-daw-800 border border-daw-700 flex items-center justify-center shadow-glow-cyan">
-                <i class="ph-bold ph-disc text-3xl text-neon-cyan animate-spin" style="animation-duration: 6s;"></i>
-              </div>
-              <div>
-                <p id="mockupTrackTitle" class="font-display font-black text-sm text-white">Berlin Subterranean</p>
-                <p id="mockupTrackSub" class="text-[10px] text-slate-400 font-mono">132 BPM • Drop 01</p>
-              </div>
-
-              <!-- Animated mini waveform graphic -->
-              <div class="flex items-center gap-1 h-8 mt-1">
-                <span class="w-1 bg-neon-cyan rounded-full animate-bounce h-5" style="animation-delay: 0.1s"></span>
-                <span class="w-1 bg-neon-cyan rounded-full animate-bounce h-8" style="animation-delay: 0.3s"></span>
-                <span class="w-1 bg-neon-cyan rounded-full animate-bounce h-3" style="animation-delay: 0.2s"></span>
-                <span class="w-1 bg-neon-cyan rounded-full animate-bounce h-7" style="animation-delay: 0.4s"></span>
-                <span class="w-1 bg-neon-cyan rounded-full animate-bounce h-4" style="animation-delay: 0.15s"></span>
-              </div>
-            </div>
-
-            <!-- Mock Footer -->
-            <div class="border-t border-white/10 pt-2 flex items-center justify-between text-[10px] font-mono text-slate-400">
-              <span class="flex items-center gap-1 text-neon-acid"><i class="ph-bold ph-link"></i> Ссылка в BIO</span>
-              <span>Полный плеер ↗</span>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- Pre-written Caption Copy Box -->
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <label class="text-xs font-bold text-slate-300">Готовый текст и хештеги для поста:</label>
-            <button id="copyCaptionBtn" class="text-xs text-neon-cyan hover:underline flex items-center gap-1 font-bold">
-              <i class="ph-bold ph-copy"></i>
-              Скопировать текст
-            </button>
-          </div>
-          <textarea id="captionBox" rows="5" class="w-full bg-daw-950 border border-daw-800 rounded-xl p-3 text-xs text-slate-300 font-mono focus:outline-none focus:border-neon-cyan leading-relaxed" readonly></textarea>
-        </div>
-
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="px-5 py-3 border-t border-daw-800 bg-daw-850 flex justify-end">
-        <button id="closePostStudioBottom" class="px-4 py-2 rounded-xl text-xs font-bold bg-daw-700 hover:bg-daw-600 text-white">Закрыть окно</button>
-      </div>
-
+    <!-- Playlist with Drag and Drop -->
+    <div class="playlist-card">
+      <div class="playlist-header">Playlist (Drag to reorder)</div>
+      <ul class="track-list" id="trackList"></ul>
     </div>
   </div>
 
-  <!-- HIDDEN FILE INPUT FOR CUSTOM AUDIO UPLOAD -->
-  <input type="file" id="audioFileInput" accept="audio/*" class="hidden" />
-
-  <!-- JAVASCRIPT: Synthesizer, Visualizer, Drag & Drop, Engine -->
   <script>
-    /* ==========================================================================
-       DEMO TRACKS DATA
-       5 different musical genres with BPM, Scale, and Procedural synthesis params
-       ========================================================================== */
-    const DEMO_TRACKS = [
-      {
-        id: 'track-1',
-        title: 'Berlin Subterranean',
-        artist: 'RESONANCE',
-        genre: 'Peak Techno',
-        bpm: 134,
-        key: 'F Minor',
-        duration: 32, // loop length in seconds
-        accentColor: '#00F0FF',
-        type: 'techno'
-      },
-      {
-        id: 'track-2',
-        title: 'Concrete Concrete',
-        artist: 'RESONANCE feat. Riot99',
-        genre: 'Hardcore Punk',
-        bpm: 168,
-        key: 'E Minor',
-        duration: 28,
-        accentColor: '#FF2A55',
-        type: 'punk'
-      },
-      {
-        id: 'track-3',
-        title: 'Crumbs & Vinyl',
-        artist: 'RESONANCE',
-        genre: '90s Boom Bap',
-        bpm: 92,
-        key: 'C Minor',
-        duration: 36,
-        accentColor: '#FFB800',
-        type: 'boombap'
-      },
-      {
-        id: 'track-4',
-        title: 'Apex Predator',
-        artist: 'RESONANCE',
-        genre: 'Thrash Metal',
-        bpm: 190,
-        key: 'D Minor',
-        duration: 30,
-        accentColor: '#FF2A55',
-        type: 'metal'
-      },
-      {
-        id: 'track-5',
-        title: 'Neuro Shadow',
-        artist: 'RESONANCE',
-        genre: 'Dark Drum & Bass',
-        bpm: 174,
-        key: 'F# Minor',
-        duration: 34,
-        accentColor: '#39FF14',
-        type: 'dnb'
-      }
+    // Массив с точными именами загруженных файлов
+    let playlist = [
+      { id: 1, title: "Track 01", sub: "Cut 1", url: encodeURI("track1 (1).mp3") },
+      { id: 2, title: "Track 02", sub: "Cut 2", url: encodeURI("track1 (2).mp3") },
+      { id: 3, title: "Track 03", sub: "Cut 3", url: encodeURI("track1 (3).mp3") },
+      { id: 4, title: "Track 04", sub: "Cut 4", url: encodeURI("track1 (4).mp3") },
+      { id: 5, title: "Track 07", sub: "Cut 7", url: encodeURI("track1 (7).mp3") }
     ];
 
-    // State
-    let playlist = [...DEMO_TRACKS];
-    let currentTrackIndex = 0;
+    let currentIndex = 0;
     let isPlaying = false;
-    let loopCurrent = true;
-    let currentVizMode = 'bars'; // 'bars', 'wave', 'circle'
-    let playbackSeconds = 0;
-    let playbackInterval = null;
+    let visMode = 'bars';
 
-    // Web Audio Architecture
+    // Аудио элементы и Web Audio API
+    const audio = new Audio();
+    audio.crossOrigin = "anonymous";
     let audioCtx = null;
-    let masterGain = null;
-    let biquadFilter = null;
-    let analyserNode = null;
-    let synthClock = null;
-    let customAudioSource = null;
-    let customAudioElement = null;
+    let analyser = null;
+    let sourceNode = null;
+    let dataArray = null;
 
-    // Canvas Elements
+    // DOM Элементы
     const canvas = document.getElementById('visualizerCanvas');
     const ctx = canvas.getContext('2d');
-    let animationFrameId = null;
-
-    // DOM Elements
-    const mainPlayBtn = document.getElementById('mainPlayBtn');
-    const mainPlayIcon = document.getElementById('mainPlayIcon');
-    const overlayPlayBtn = document.getElementById('overlayPlayBtn');
+    const playBtn = document.getElementById('playBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
-    const loopBtn = document.getElementById('loopBtn');
-    const volumeSlider = document.getElementById('volumeSlider');
-    const timelineContainer = document.getElementById('timelineContainer');
+    const trackListEl = document.getElementById('trackList');
+    const currentTrackTitle = document.getElementById('currentTrackTitle');
+    const currentTrackMeta = document.getElementById('currentTrackMeta');
+    const statusBadge = document.getElementById('statusBadge');
     const progressBar = document.getElementById('progressBar');
+    const progressBarContainer = document.getElementById('progressBarContainer');
     const currentTimeEl = document.getElementById('currentTime');
-    const totalDurationEl = document.getElementById('totalDuration');
-    const deckTitle = document.getElementById('deckTitle');
-    const deckArtist = document.getElementById('deckArtist');
-    const deckGenre = document.getElementById('deckGenre');
-    const trackKeyBadge = document.getElementById('trackKeyBadge');
-    const liveBpm = document.getElementById('liveBpm');
-    const playlistContainer = document.getElementById('playlistList');
-    const filterCutoff = document.getElementById('filterCutoff');
-    const cutoffVal = document.getElementById('cutoffVal');
-    const filterRes = document.getElementById('filterRes');
-    const resVal = document.getElementById('resVal');
-    const audioFileInput = document.getElementById('audioFileInput');
-    const openUploadBtn = document.getElementById('openUploadBtn');
+    const durationTimeEl = document.getElementById('durationTime');
+    const visBtns = document.querySelectorAll('.vis-btn');
 
-    // Instagram Studio Elements
-    const postStudioModal = document.getElementById('postStudioModal');
-    const openPostStudioBtn = document.getElementById('openPostStudioBtn');
-    const openPostStudioSecondary = document.getElementById('openPostStudioSecondary');
-    const closePostStudio = document.getElementById('closePostStudio');
-    const closePostStudioBottom = document.getElementById('closePostStudioBottom');
-    const ratioSquareBtn = document.getElementById('ratioSquareBtn');
-    const ratioStoryBtn = document.getElementById('ratioStoryBtn');
-    const mockupFrame = document.getElementById('mockupFrame');
-    const mockupTrackTitle = document.getElementById('mockupTrackTitle');
-    const mockupTrackSub = document.getElementById('mockupTrackSub');
-    const captionBox = document.getElementById('captionBox');
-    const copyCaptionBtn = document.getElementById('copyCaptionBtn');
-
-    /* ==========================================================================
-       INITIALIZE AUDIO ENGINE (Web Audio API)
-       ========================================================================== */
-    function initAudioEngine() {
-      if (audioCtx) return;
-
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AudioContextClass();
-
-      // Master Gain
-      masterGain = audioCtx.createGain();
-      masterGain.gain.setValueAtTime(parseFloat(volumeSlider.value), audioCtx.currentTime);
-
-      // Master Biquad Filter (Lowpass)
-      biquadFilter = audioCtx.createBiquadFilter();
-      biquadFilter.type = 'lowpass';
-      biquadFilter.frequency.setValueAtTime(20000, audioCtx.currentTime);
-      biquadFilter.Q.setValueAtTime(1.0, audioCtx.currentTime);
-
-      // Fast Fourier Analyser for visualizer
-      analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = 256;
-      analyserNode.smoothingTimeConstant = 0.82;
-
-      // Routing: Synth/Element -> Filter -> Master Gain -> Analyser -> Speakers
-      biquadFilter.connect(masterGain);
-      masterGain.connect(analyserNode);
-      analyserNode.connect(audioCtx.destination);
-    }
-
-    /* ==========================================================================
-       SYNTHESIZER INSTRUMENT GENERATORS
-       Real audio generated algorithmically per genre beat
-       ========================================================================== */
-    function triggerKick(time, punch = 1.0) {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(140 * punch, time);
-      osc.frequency.exponentialRampToValueAtTime(38, time + 0.12);
-
-      gain.gain.setValueAtTime(0.9, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
-
-      osc.connect(gain);
-      gain.connect(biquadFilter);
-
-      osc.start(time);
-      osc.stop(time + 0.3);
-    }
-
-    function triggerSnare(time, toneFreq = 180) {
-      if (!audioCtx) return;
-      // Tone body
-      const osc = audioCtx.createOscillator();
-      const oscGain = audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(toneFreq, time);
-      oscGain.gain.setValueAtTime(0.4, time);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
-      osc.connect(oscGain);
-      oscGain.connect(biquadFilter);
-      osc.start(time);
-      osc.stop(time + 0.15);
-
-      // Noise sizzle
-      const bufferSize = audioCtx.sampleRate * 0.18;
-      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      const noise = audioCtx.createBufferSource();
-      noise.buffer = buffer;
-      const noiseFilter = audioCtx.createBiquadFilter();
-      noiseFilter.type = 'highpass';
-      noiseFilter.frequency.value = 1000;
-
-      const noiseGain = audioCtx.createGain();
-      noiseGain.gain.setValueAtTime(0.45, time);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
-
-      noise.connect(noiseFilter);
-      noiseFilter.connect(noiseGain);
-      noiseGain.connect(biquadFilter);
-
-      noise.start(time);
-      noise.stop(time + 0.2);
-    }
-
-    function triggerHiHat(time, open = false) {
-      if (!audioCtx) return;
-      const dur = open ? 0.25 : 0.05;
-      const bufferSize = audioCtx.sampleRate * dur;
-      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      const noise = audioCtx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = audioCtx.createBiquadFilter();
-      filter.type = 'highpass';
-      filter.frequency.value = 7500;
-
-      const gain = audioCtx.createGain();
-      gain.gain.setValueAtTime(0.2, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(biquadFilter);
-
-      noise.start(time);
-      noise.stop(time + dur);
-    }
-
-    function triggerBassNote(time, freq, duration = 0.2, waveType = 'sawtooth') {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = waveType;
-      osc.frequency.setValueAtTime(freq, time);
-
-      gain.gain.setValueAtTime(0.35, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-      osc.connect(gain);
-      gain.connect(biquadFilter);
-
-      osc.start(time);
-      osc.stop(time + duration);
-    }
-
-    /* ==========================================================================
-       PROCEDURAL SEQUENCER LOOP
-       Plays unique style patterns according to active track
-       ========================================================================== */
-    let currentStep = 0;
-    let stepTimer = null;
-
-    function startProceduralTrack(track) {
-      stopProceduralTrack();
-      if (!audioCtx) initAudioEngine();
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-
-      currentStep = 0;
-      const bpm = track.bpm;
-      const stepDurationMs = (60 / bpm / 4) * 1000; // 16th note in ms
-
-      stepTimer = setInterval(() => {
-        if (!isPlaying) return;
-        const now = audioCtx.currentTime;
-        const step16 = currentStep % 16;
-
-        switch (track.type) {
-          case 'techno':
-            // 4-on-the-floor kick
-            if (step16 % 4 === 0) triggerKick(now, 1.2);
-            // Offbeat open hat
-            if (step16 % 4 === 2) triggerHiHat(now, true);
-            // Driving 16th closed hats
-            if (step16 % 2 === 1) triggerHiHat(now, false);
-            // Rumble sub-bass note (F1 ~ 43.65 Hz)
-            if (step16 % 4 === 1 || step16 % 4 === 3) {
-              triggerBassNote(now, 43.65, 0.18, 'sine');
-            }
-            break;
-
-          case 'punk':
-            // High speed d-beat / punk kick & snare
-            if (step16 % 4 === 0 || step16 === 10) triggerKick(now, 1.1);
-            if (step16 === 4 || step16 === 12) triggerSnare(now, 220);
-            if (step16 % 2 === 0) triggerHiHat(now, true);
-            // Distorted root bass
-            const punkNotes = [82.4, 82.4, 98.0, 110.0];
-            const pNote = punkNotes[Math.floor(currentStep / 8) % punkNotes.length];
-            triggerBassNote(now, pNote, 0.12, 'sawtooth');
-            break;
-
-          case 'boombap':
-            // Classic hip hop 90s groove
-            if (step16 === 0 || step16 === 6 || step16 === 10) triggerKick(now, 1.0);
-            if (step16 === 4 || step16 === 12) triggerSnare(now, 170);
-            triggerHiHat(now, false);
-            // Smooth Rhodes / vinyl sub bass (C2 ~ 65.4 Hz)
-            if (step16 === 0 || step16 === 3 || step16 === 8 || step16 === 11) {
-              triggerBassNote(now, 65.4, 0.22, 'triangle');
-            }
-            break;
-
-          case 'metal':
-            // Double bass kicks & aggressive thrash groove
-            triggerKick(now, 1.0);
-            if (step16 === 4 || step16 === 12) triggerSnare(now, 240);
-            if (step16 % 2 === 0) triggerHiHat(now, false);
-            // Low D power note (73.4 Hz)
-            triggerBassNote(now, 73.41, 0.1, 'sawtooth');
-            break;
-
-          case 'dnb':
-            // 2-step Drum & Bass breakbeat
-            if (step16 === 0 || step16 === 10) triggerKick(now, 1.1);
-            if (step16 === 4 || step16 === 12) triggerSnare(now, 210);
-            triggerHiHat(now, step16 % 4 === 2);
-            // Reese bass sweep
-            if (step16 % 4 === 0) {
-              triggerBassNote(now, 46.25, 0.35, 'sawtooth');
-            }
-            break;
-        }
-
-        currentStep++;
-      }, stepDurationMs);
-    }
-
-    function stopProceduralTrack() {
-      if (stepTimer) {
-        clearInterval(stepTimer);
-        stepTimer = null;
-      }
-    }
-
-    /* ==========================================================================
-       PLAYBACK & TRANSPORT CONTROLLER
-       ========================================================================== */
-    function loadTrack(index) {
-      if (index < 0) index = playlist.length - 1;
-      if (index >= playlist.length) index = 0;
-      currentTrackIndex = index;
-
-      const track = playlist[currentTrackIndex];
-
-      // Update UI Header & Deck
-      deckTitle.textContent = track.title;
-      deckArtist.textContent = `${track.artist} • ${track.bpm} BPM`;
-      deckGenre.textContent = track.genre;
-      deckGenre.style.color = track.accentColor;
-      trackKeyBadge.textContent = track.key || '440 Hz';
-      liveBpm.textContent = `${track.bpm} BPM`;
-      totalDurationEl.textContent = formatTime(track.duration);
-
-      // Update IG Studio fields
-      mockupTrackTitle.textContent = track.title;
-      mockupTrackSub.textContent = `${track.genre} • ${track.bpm} BPM`;
-      updateCaptionText(track);
-
-      // Stop previous
-      stopPlaybackTimer();
-      playbackSeconds = 0;
-      updateTimelineProgress();
-
-      // Refresh playlist active highlight
-      renderPlaylist();
-
-      if (isPlaying) {
-        playActiveTrack();
-      }
-    }
-
-    function playActiveTrack() {
-      initAudioEngine();
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-
-      isPlaying = true;
-      mainPlayIcon.classList.replace('ph-play', 'ph-pause');
-      overlayPlayBtn.classList.add('hidden');
-      document.getElementById('engineStatus').textContent = 'AUDIO ENGINE: PLAYING';
-      document.getElementById('engineStatus').classList.add('text-neon-cyan');
-
-      const current = playlist[currentTrackIndex];
-
-      if (current.customAudioUrl) {
-        // Play uploaded user file
-        stopProceduralTrack();
-        if (!customAudioElement) {
-          customAudioElement = new Audio();
-          customAudioSource = audioCtx.createMediaElementSource(customAudioElement);
-          customAudioSource.connect(biquadFilter);
-        }
-        customAudioElement.src = current.customAudioUrl;
-        customAudioElement.currentTime = playbackSeconds;
-        customAudioElement.play();
-        customAudioElement.onended = () => {
-          if (loopCurrent) {
-            playActiveTrack();
-          } else {
-            nextTrack();
-          }
-        };
-      } else {
-        // Play algorithmic synthesis
-        startProceduralTrack(current);
-      }
-
-      startPlaybackTimer();
-    }
-
-    function pauseActiveTrack() {
-      isPlaying = false;
-      mainPlayIcon.classList.replace('ph-pause', 'ph-play');
-      overlayPlayBtn.classList.remove('hidden');
-      document.getElementById('engineStatus').textContent = 'AUDIO ENGINE: PAUSED';
-      document.getElementById('engineStatus').classList.remove('text-neon-cyan');
-
-      stopProceduralTrack();
-      if (customAudioElement) {
-        customAudioElement.pause();
-      }
-      stopPlaybackTimer();
-    }
-
-    function togglePlay() {
-      if (isPlaying) {
-        pauseActiveTrack();
-      } else {
-        playActiveTrack();
-      }
-    }
-
-    function nextTrack() {
-      loadTrack(currentTrackIndex + 1);
-      if (isPlaying) playActiveTrack();
-    }
-
-    function prevTrack() {
-      if (playbackSeconds > 3) {
-        playbackSeconds = 0;
-        updateTimelineProgress();
-        if (customAudioElement) customAudioElement.currentTime = 0;
-      } else {
-        loadTrack(currentTrackIndex - 1);
-        if (isPlaying) playActiveTrack();
-      }
-    }
-
-    function startPlaybackTimer() {
-      stopPlaybackTimer();
-      playbackInterval = setInterval(() => {
-        const track = playlist[currentTrackIndex];
-        playbackSeconds += 0.5;
-        
-        if (playbackSeconds >= track.duration) {
-          if (loopCurrent) {
-            playbackSeconds = 0;
-          } else {
-            nextTrack();
-            return;
-          }
-        }
-        updateTimelineProgress();
-      }, 500);
-    }
-
-    function stopPlaybackTimer() {
-      if (playbackInterval) {
-        clearInterval(playbackInterval);
-        playbackInterval = null;
-      }
-    }
-
-    function updateTimelineProgress() {
-      const track = playlist[currentTrackIndex];
-      const percent = Math.min((playbackSeconds / track.duration) * 100, 100);
-      progressBar.style.width = `${percent}%`;
-      currentTimeEl.textContent = formatTime(Math.floor(playbackSeconds));
-    }
-
-    function formatTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = Math.floor(sec % 60);
-      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-    }
-
-    /* ==========================================================================
-       CANVAS VISUALIZER (Bars, Oscilloscope & Circle Bloom)
-       ========================================================================== */
+    // Настройка размеров Canvas
     function resizeCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio || 600;
-      canvas.height = rect.height * window.devicePixelRatio || 350;
+      canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+      canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
     }
     window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-    function drawVisualizer() {
-      animationFrameId = requestAnimationFrame(drawVisualizer);
-
-      const width = canvas.width;
-      const height = canvas.height;
-
-      // Dark fade trails
-      ctx.fillStyle = 'rgba(8, 9, 12, 0.28)';
-      ctx.fillRect(0, 0, width, height);
-
-      if (!analyserNode) {
-        drawIdleGrid(width, height);
-        return;
-      }
-
-      const bufferLength = analyserNode.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      if (currentVizMode === 'bars') {
-        analyserNode.getByteFrequencyData(dataArray);
-
-        const barWidth = (width / bufferLength) * 2.2;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const barHeight = (dataArray[i] / 255) * (height * 0.85);
-
-          // Neon gradient from Cyan to Acid Green or Crimson based on track
-          const grad = ctx.createLinearGradient(0, height, 0, height - barHeight);
-          grad.addColorStop(0, '#00F0FF');
-          grad.addColorStop(0.5, '#39FF14');
-          grad.addColorStop(1, '#FF2A55');
-
-          ctx.fillStyle = grad;
-          ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
-
-          // Top floating cap
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(x, height - barHeight - 3, barWidth - 2, 2);
-
-          x += barWidth;
-        }
-
-      } else if (currentVizMode === 'wave') {
-        analyserNode.getByteTimeDomainData(dataArray);
-
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#00F0FF';
-        ctx.shadowColor = '#00F0FF';
-        ctx.shadowBlur = 12;
-
-        ctx.beginPath();
-        const sliceWidth = width / bufferLength;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0;
-          const y = (v * height) / 2;
-
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-
-          x += sliceWidth;
-        }
-        ctx.lineTo(width, height / 2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-
-      } else if (currentVizMode === 'circle') {
-        analyserNode.getByteFrequencyData(dataArray);
-
-        // Calculate average bass kick power
-        let bassSum = 0;
-        for (let i = 0; i < 16; i++) {
-          bassSum += dataArray[i];
-        }
-        const bassLevel = bassSum / 16; // 0..255
-
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const baseRadius = Math.min(width, height) * 0.22 + (bassLevel * 0.4);
-
-        // Reactive Pulse Ring
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, baseRadius, 0, 2 * Math.PI);
-        ctx.strokeStyle = '#FF2A55';
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#FF2A55';
-        ctx.shadowBlur = bassLevel > 140 ? 35 : 10;
-        ctx.stroke();
-
-        // Rays radiating out
-        const points = 32;
-        for (let i = 0; i < points; i++) {
-          const angle = (i / points) * Math.PI * 2;
-          const val = dataArray[i % bufferLength] / 255;
-          const rayLen = baseRadius + (val * 90);
-
-          const x1 = centerX + Math.cos(angle) * baseRadius;
-          const y1 = centerY + Math.sin(angle) * baseRadius;
-          const x2 = centerX + Math.cos(angle) * rayLen;
-          const y2 = centerY + Math.sin(angle) * rayLen;
-
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.strokeStyle = '#00F0FF';
-          ctx.lineWidth = 3;
-          ctx.stroke();
-        }
-        ctx.shadowBlur = 0;
+    // Инициализация Web Audio API
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        sourceNode = audioCtx.createMediaElementSource(audio);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
       }
     }
 
-    function drawIdleGrid(w, h) {
-      ctx.strokeStyle = 'rgba(42, 49, 66, 0.4)';
-      ctx.lineWidth = 1;
-      const step = 40;
-      for (let x = 0; x < w; x += step) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-      }
-      for (let y = 0; y < h; y += step) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
-    }
-
-    /* ==========================================================================
-       DRAGGABLE PLAYLIST COMPONENT
-       Allows rearranging tracks for the EP drop order
-       ========================================================================== */
+    // Рендер плейлиста
     function renderPlaylist() {
-      playlistContainer.innerHTML = '';
-      document.getElementById('trackCountBadge').textContent = `${playlist.length} треков`;
+      trackListEl.innerHTML = '';
+      playlist.forEach((track, idx) => {
+        const li = document.createElement('li');
+        li.className = `track-item ${idx === currentIndex ? 'active' : ''}`;
+        li.draggable = true;
+        li.dataset.index = idx;
 
-      playlist.forEach((track, index) => {
-        const isCurrent = index === currentTrackIndex;
-
-        const row = document.createElement('div');
-        row.className = `group flex items-center justify-between p-2.5 rounded-xl transition border ${
-          isCurrent 
-            ? 'bg-daw-800 border-neon-cyan/50 shadow-sm' 
-            : 'bg-daw-850/60 border-transparent hover:border-daw-700 hover:bg-daw-800/80'
-        }`;
-        row.draggable = true;
-        row.dataset.index = index;
-
-        row.innerHTML = `
-          <div class="flex items-center gap-3 min-w-0">
-            <!-- Drag Grip Handle -->
-            <div class="drag-handle text-slate-500 hover:text-white px-1 py-1">
-              <i class="ph-bold ph-dots-six-vertical text-base"></i>
-            </div>
-
-            <!-- Number / Play Status -->
-            <button class="play-track-btn w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
-              isCurrent ? 'bg-neon-cyan text-daw-950 font-black' : 'bg-daw-900 text-slate-400 group-hover:text-white'
-            }">
-              ${isCurrent && isPlaying ? '<i class="ph-fill ph-speaker-high"></i>' : index + 1}
-            </button>
-
-            <!-- Metadata -->
-            <div class="truncate">
-              <div class="flex items-center gap-2">
-                <span class="font-display font-bold text-xs sm:text-sm text-white truncate ${isCurrent ? 'text-neon-cyan' : ''}">
-                  ${track.title}
-                </span>
-                <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-daw-900 border border-daw-700 text-slate-300">
-                  ${track.bpm} BPM
-                </span>
-              </div>
-              <p class="text-[10px] text-slate-400 font-mono truncate">${track.genre} • ${track.key || 'Key'}</p>
-            </div>
-          </div>
-
-          <!-- Duration & Actions -->
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="text-[11px] text-slate-400 font-mono">${formatTime(track.duration)}</span>
-            <button class="remove-track-btn text-slate-500 hover:text-neon-crimson transition px-1" title="Удалить из списка">
-              <i class="ph-bold ph-trash text-sm"></i>
-            </button>
+        li.innerHTML = `
+          <span class="drag-handle">:::</span>
+          <span class="track-idx">${idx + 1 < 10 ? '0' + (idx + 1) : idx + 1}</span>
+          <div class="track-details">
+            <span class="track-name">${track.title}</span>
+            <span class="track-sub">${track.sub}</span>
           </div>
         `;
 
-        // Click to play
-        row.querySelector('.play-track-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (isCurrent) {
-            togglePlay();
-          } else {
-            loadTrack(index);
-            playActiveTrack();
-          }
+        li.addEventListener('click', (e) => {
+          if (e.target.classList.contains('drag-handle')) return;
+          loadAndPlayTrack(idx);
         });
 
-        row.addEventListener('click', (e) => {
-          if (!e.target.closest('.drag-handle') && !e.target.closest('.remove-track-btn')) {
-            loadTrack(index);
-            playActiveTrack();
-          }
-        });
+        // Drag & Drop
+        li.addEventListener('dragstart', handleDragStart);
+        li.addEventListener('dragover', handleDragOver);
+        li.addEventListener('drop', handleDrop);
+        li.addEventListener('dragend', handleDragEnd);
 
-        // Remove track
-        row.querySelector('.remove-track-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          removeTrack(index);
-        });
-
-        // Drag and Drop Events
-        setupDragEvents(row);
-
-        playlistContainer.appendChild(row);
+        trackListEl.appendChild(li);
       });
     }
 
-    let draggedItem = null;
-
-    function setupDragEvents(el) {
-      el.addEventListener('dragstart', (e) => {
-        draggedItem = el;
-        setTimeout(() => el.classList.add('dragging'), 0);
-      });
-
-      el.addEventListener('dragend', () => {
-        el.classList.remove('dragging');
-        draggedItem = null;
-      });
-
-      el.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(playlistContainer, e.clientY);
-        if (afterElement == null) {
-          playlistContainer.appendChild(draggedItem);
-        } else {
-          playlistContainer.insertBefore(draggedItem, afterElement);
-        }
-      });
-
-      el.addEventListener('drop', () => {
-        // Rebuild JS playlist array according to new DOM order
-        const newOrder = [];
-        const rows = playlistContainer.querySelectorAll('[data-index]');
-        rows.forEach(r => {
-          const oldIndex = parseInt(r.dataset.index);
-          newOrder.push(playlist[oldIndex]);
-        });
-        playlist = newOrder;
-        renderPlaylist();
-      });
-    }
-
-    function getDragAfterElement(container, y) {
-      const draggableElements = [...container.querySelectorAll('[data-index]:not(.dragging)')];
-      return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
-        } else {
-          return closest;
-        }
-      }, { offset: Number.NEGATIVE_INFINITY }).element;
-    }
-
-    function removeTrack(index) {
-      if (playlist.length <= 1) {
-        return; // Keep at least one track
+    // Загрузка и запуск трека
+    function loadAndPlayTrack(idx) {
+      initAudioContext();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
       }
-      playlist.splice(index, 1);
-      if (currentTrackIndex >= playlist.length) {
-        currentTrackIndex = playlist.length - 1;
-      }
-      loadTrack(currentTrackIndex);
+
+      currentIndex = idx;
+      const track = playlist[currentIndex];
+      audio.src = track.url;
+      currentTrackTitle.textContent = track.title;
+      currentTrackMeta.textContent = track.sub;
+      statusBadge.textContent = "PLAYING";
+      
       renderPlaylist();
+
+      audio.play().then(() => {
+        isPlaying = true;
+        playBtn.textContent = '⏸';
+      }).catch(err => {
+        console.warn("Autoplay block or missing file:", err);
+      });
     }
 
-    /* ==========================================================================
-       INSTAGRAM DROP STUDIO MODAL & CAPTION BUILDER
-       ========================================================================== */
-    function updateCaptionText(track) {
-      captionBox.value = 
-`⚡ NEW DROP: "${track.title}" [${track.genre}]
-━━━━━━━━━━━━━━━━━━━━
-▶ Слушай интерактивный плеер по ссылке в шапке профиля!
-🎚 Сведено на ${track.bpm} BPM | Тональность: ${track.key || 'Original'}
-Свайпай карусель, чтобы послушать другие сниппеты релиза!
+    // Play/Pause
+    playBtn.addEventListener('click', () => {
+      initAudioContext();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
 
-Какой трек зашел больше: 1, 2 или 3? Пиши в комменты 👇
-
-#electronicmusic #producer #beatmaker #flstudio #newmusicfriday #instamusic #${track.genre.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-    }
-
-    function openModal() {
-      postStudioModal.classList.remove('hidden');
-    }
-    function closeModal() {
-      postStudioModal.classList.add('hidden');
-    }
-
-    /* ==========================================================================
-       EVENT LISTENERS & BINDINGS
-       ========================================================================== */
-    window.addEventListener('load', () => {
-      resizeCanvas();
-      drawVisualizer();
-      renderPlaylist();
-      loadTrack(0);
-    });
-
-    // Transport buttons
-    mainPlayBtn.addEventListener('click', togglePlay);
-    overlayPlayBtn.addEventListener('click', togglePlay);
-    nextBtn.addEventListener('click', nextTrack);
-    prevBtn.addEventListener('click', prevTrack);
-
-    loopBtn.addEventListener('click', () => {
-      loopCurrent = !loopCurrent;
-      loopBtn.classList.toggle('text-neon-cyan', loopCurrent);
-      loopBtn.classList.toggle('text-slate-500', !loopCurrent);
-    });
-
-    // Volume Slider
-    volumeSlider.addEventListener('input', (e) => {
-      const vol = parseFloat(e.target.value);
-      if (masterGain) {
-        masterGain.gain.setValueAtTime(vol, audioCtx.currentTime);
+      if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        playBtn.textContent = '▶';
+        statusBadge.textContent = "PAUSED";
+      } else {
+        if (!audio.src) {
+          loadAndPlayTrack(currentIndex);
+        } else {
+          audio.play();
+          isPlaying = true;
+          playBtn.textContent = '⏸';
+          statusBadge.textContent = "PLAYING";
+        }
       }
     });
 
-    // Timeline Scrubbing
-    timelineContainer.addEventListener('click', (e) => {
-      const rect = timelineContainer.getBoundingClientRect();
-      const clickPos = (e.clientX - rect.left) / rect.width;
-      const track = playlist[currentTrackIndex];
-      playbackSeconds = track.duration * clickPos;
-      if (customAudioElement) {
-        customAudioElement.currentTime = playbackSeconds;
-      }
-      updateTimelineProgress();
+    prevBtn.addEventListener('click', () => {
+      let idx = currentIndex - 1;
+      if (idx < 0) idx = playlist.length - 1;
+      loadAndPlayTrack(idx);
     });
 
-    // Interactive Cutoff / Resonance Filters
-    filterCutoff.addEventListener('input', (e) => {
-      const hz = parseFloat(e.target.value);
-      cutoffVal.textContent = `${Math.round(hz)} Hz`;
-      if (biquadFilter) {
-        biquadFilter.frequency.setValueAtTime(hz, audioCtx.currentTime);
-      }
+    nextBtn.addEventListener('click', () => {
+      let idx = currentIndex + 1;
+      if (idx >= playlist.length) idx = 0;
+      loadAndPlayTrack(idx);
     });
 
-    filterRes.addEventListener('input', (e) => {
-      const q = parseFloat(e.target.value);
-      resVal.textContent = q.toFixed(1);
-      if (biquadFilter) {
-        biquadFilter.Q.setValueAtTime(q, audioCtx.currentTime);
+    audio.addEventListener('ended', () => {
+      let idx = currentIndex + 1;
+      if (idx < playlist.length) {
+        loadAndPlayTrack(idx);
+      } else {
+        isPlaying = false;
+        playBtn.textContent = '▶';
+        statusBadge.textContent = "END";
       }
     });
 
-    // Visualizer mode buttons
-    document.querySelectorAll('.viz-mode-btn').forEach(btn => {
+    // Прогресс бар и время
+    function formatTime(sec) {
+      if (isNaN(sec)) return "00:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+    }
+
+    audio.addEventListener('timeupdate', () => {
+      const current = audio.currentTime;
+      const duration = audio.duration || 0;
+      currentTimeEl.textContent = formatTime(current);
+      durationTimeEl.textContent = formatTime(duration);
+      if (duration > 0) {
+        progressBar.style.width = `${(current / duration) * 100}%`;
+      }
+    });
+
+    progressBarContainer.addEventListener('click', (e) => {
+      const rect = progressBarContainer.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      if (audio.duration) {
+        audio.currentTime = pos * audio.duration;
+      }
+    });
+
+    // Режимы визуализатора
+    visBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.viz-mode-btn').forEach(b => {
-          b.classList.remove('bg-neon-cyan', 'text-daw-950');
-          b.classList.add('text-slate-400');
-        });
-        btn.classList.add('bg-neon-cyan', 'text-daw-950');
-        btn.classList.remove('text-slate-400');
-        currentVizMode = btn.dataset.mode;
+        visBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        visMode = btn.dataset.mode;
       });
     });
 
-    // Custom Audio Upload File
-    openUploadBtn.addEventListener('click', () => audioFileInput.click());
-    audioFileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    // Анимация Canvas
+    function drawVisualizer() {
+      requestAnimationFrame(drawVisualizer);
+      const w = canvas.width;
+      const h = canvas.height;
 
-      const trackUrl = URL.createObjectURL(file);
-      const newTrack = {
-        id: `custom-${Date.now()}`,
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        artist: 'My Custom Audio',
-        genre: 'User Upload',
-        bpm: 128,
-        key: 'A Minor',
-        duration: 45,
-        accentColor: '#39FF14',
-        customAudioUrl: trackUrl
-      };
+      ctx.fillStyle = '#040507';
+      ctx.fillRect(0, 0, w, h);
 
-      playlist.unshift(newTrack);
-      loadTrack(0);
-      playActiveTrack();
-    });
+      if (!analyser) return;
 
-    // Reset playlist order
-    document.getElementById('resetOrderBtn').addEventListener('click', () => {
-      playlist = [...DEMO_TRACKS];
-      loadTrack(0);
-      renderPlaylist();
-    });
+      if (visMode === 'wave') {
+        analyser.getByteTimeDomainData(dataArray);
+        ctx.lineWidth = 2 * window.devicePixelRatio;
+        ctx.strokeStyle = '#00ffcc';
+        ctx.beginPath();
 
-    // Instagram modal open/close
-    openPostStudioBtn.addEventListener('click', openModal);
-    openPostStudioSecondary.addEventListener('click', openModal);
-    closePostStudio.addEventListener('click', closeModal);
-    closePostStudioBottom.addEventListener('click', closeModal);
+        const sliceWidth = w / dataArray.length;
+        let x = 0;
 
-    // Instagram aspect ratio toggle
-    ratioSquareBtn.addEventListener('click', () => {
-      mockupFrame.className = "relative transition-all duration-300 w-[280px] h-[280px] bg-gradient-to-br from-daw-900 to-black border-2 border-daw-700 rounded-xl overflow-hidden shadow-2xl flex flex-col justify-between p-4";
-      ratioSquareBtn.classList.add('bg-neon-cyan', 'text-daw-950');
-      ratioSquareBtn.classList.remove('text-slate-400');
-      ratioStoryBtn.classList.remove('bg-neon-cyan', 'text-daw-950');
-      ratioStoryBtn.classList.add('text-slate-400');
-    });
+        for (let i = 0; i < dataArray.length; i++) {
+          const v = dataArray[i] / 128.0;
+          const y = (v * h) / 2;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+          x += sliceWidth;
+        }
+        ctx.lineTo(w, h / 2);
+        ctx.stroke();
 
-    ratioStoryBtn.addEventListener('click', () => {
-      mockupFrame.className = "relative transition-all duration-300 w-[210px] h-[373px] bg-gradient-to-br from-daw-900 to-black border-2 border-daw-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between p-4";
-      ratioStoryBtn.classList.add('bg-neon-cyan', 'text-daw-950');
-      ratioStoryBtn.classList.remove('text-slate-400');
-      ratioSquareBtn.classList.remove('bg-neon-cyan', 'text-daw-950');
-      ratioSquareBtn.classList.add('text-slate-400');
-    });
+      } else if (visMode === 'bloom') {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < 16; i++) sum += dataArray[i];
+        const bassVal = sum / 16;
+        const radius = (h * 0.2) + (bassVal / 255) * (h * 0.25);
 
-    // Copy Caption text
-    copyCaptionBtn.addEventListener('click', () => {
-      captionBox.select();
-      document.execCommand('copy');
-      const originalText = copyCaptionBtn.innerHTML;
-      copyCaptionBtn.innerHTML = '<i class="ph-bold ph-check text-neon-acid"></i> Скопировано!';
-      setTimeout(() => {
-        copyCaptionBtn.innerHTML = originalText;
-      }, 2000);
-    });
+        const gradient = ctx.createRadialGradient(w/2, h/2, radius * 0.2, w/2, h/2, radius);
+        gradient.addColorStop(0, '#00ffcc');
+        gradient.addColorStop(0.7, '#ff0055');
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(w/2, h/2, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+      } else {
+        // 'bars'
+        analyser.getByteFrequencyData(dataArray);
+        const bars = 36;
+        const barWidth = (w / bars) - (3 * window.devicePixelRatio);
+        for (let i = 0; i < bars; i++) {
+          const val = dataArray[i];
+          const barHeight = (val / 255) * (h * 0.85);
+          const x = i * (barWidth + (3 * window.devicePixelRatio));
+          const y = h - barHeight;
+
+          const grad = ctx.createLinearGradient(0, y, 0, h);
+          grad.addColorStop(0, '#00ffcc');
+          grad.addColorStop(1, 'rgba(255, 0, 85, 0.4)');
+
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, barWidth, barHeight);
+        }
+      }
+    }
+    drawVisualizer();
+
+    // Обработчики Drag & Drop
+    let dragSrcIndex = null;
+
+    function handleDragStart(e) {
+      dragSrcIndex = Number(this.dataset.index);
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+      if (e.preventDefault) e.preventDefault();
+      return false;
+    }
+
+    function handleDrop(e) {
+      e.stopPropagation();
+      const dropIndex = Number(this.dataset.index);
+      if (dragSrcIndex !== null && dragSrcIndex !== dropIndex) {
+        const movedItem = playlist.splice(dragSrcIndex, 1)[0];
+        playlist.splice(dropIndex, 0, movedItem);
+        renderPlaylist();
+      }
+      return false;
+    }
+
+    function handleDragEnd() {
+      this.classList.remove('dragging');
+    }
+
+    // Первый запуск
+    renderPlaylist();
   </script>
 </body>
 </html>
